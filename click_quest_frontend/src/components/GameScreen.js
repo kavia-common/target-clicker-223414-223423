@@ -17,7 +17,7 @@ const dbg = (...args) => {
   }
 };
 
- // PUBLIC_INTERFACE
+// PUBLIC_INTERFACE
 export default function GameScreen({ onFinish, prefersReducedMotion, durationMs = 30000 }) {
   const DURATION_MS = durationMs;
 
@@ -42,8 +42,13 @@ export default function GameScreen({ onFinish, prefersReducedMotion, durationMs 
     scoreRef.current = Number.isFinite(score) ? score : 0;
   }, [score]);
 
-  // combo state
+  // combo state and refs to avoid stale closures during rapid hits
   const [combo, setCombo] = useState(1);
+  const comboRef = useRef(1);
+  useEffect(() => {
+    comboRef.current = combo;
+  }, [combo]);
+
   const lastHitRef = useRef(0);
   const comboTimerRef = useRef(null);
 
@@ -61,6 +66,7 @@ export default function GameScreen({ onFinish, prefersReducedMotion, durationMs 
     setTargets([]);
     setRunning(true);
     setCombo(1);
+    comboRef.current = 1;
     scoreRef.current = 0;
     startRef.current = 0;
     lastSpawnRef.current = 0;
@@ -132,8 +138,10 @@ export default function GameScreen({ onFinish, prefersReducedMotion, durationMs 
         let nextCombo = 1;
         if (comboEnabled) {
           const withinWindow = now - (lastHitRef.current || 0) <= COMBO_WINDOW_MS;
-          // Read current combo from state safely
-          nextCombo = withinWindow ? Math.min(COMBO_MAX, (Number.isFinite(combo) ? combo : 1) + 1) : 1;
+
+          // Read current combo from the ref to avoid stale state in rapid clicks
+          const currentCombo = Number.isFinite(comboRef.current) ? comboRef.current : 1;
+          nextCombo = withinWindow ? Math.min(COMBO_MAX, currentCombo + 1) : 1;
 
           // Reset decay timer
           if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
@@ -142,7 +150,10 @@ export default function GameScreen({ onFinish, prefersReducedMotion, durationMs 
           }, COMBO_WINDOW_MS);
 
           lastHitRef.current = now;
+
+          // Update both state and ref to keep them in sync for subsequent rapid clicks
           setCombo(nextCombo);
+          comboRef.current = nextCombo;
         }
 
         const safePrev = Number.isFinite(prevScore) ? prevScore : 0;
@@ -154,7 +165,7 @@ export default function GameScreen({ onFinish, prefersReducedMotion, durationMs 
         return newScore;
       });
     },
-    [combo, comboEnabled]
+    [comboEnabled]
   );
 
   const loop = useCallback(
