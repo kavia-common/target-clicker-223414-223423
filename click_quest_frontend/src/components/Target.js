@@ -81,7 +81,7 @@ export default function Target({
       style={style}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
-      role="button"
+
       aria-label="Target"
       title="Target"
       tabIndex={0}
