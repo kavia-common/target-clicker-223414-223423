@@ -75,17 +75,17 @@ describe('GameScreen', () => {
     expect(screen.getByText(/x3/)).toBeInTheDocument();
   });
 
-  test('timer counts down and calls onFinish at ~30s', () => {
+  test('timer counts down and calls onFinish at ~specified duration', () => {
     const onFinish = jest.fn();
-    render(<GameScreen onFinish={onFinish} prefersReducedMotion />);
-    // Simulate full 30s; wrap in act to flush effects and RAF loops
+    render(<GameScreen onFinish={onFinish} prefersReducedMotion durationMs={3000} />);
+    // Simulate full 3s; wrap in act to flush effects and RAF loops
     act(() => {
-      jest.advanceTimersByTime(30000);
+      jest.advanceTimersByTime(3000);
     });
     expect(onFinish).toHaveBeenCalledTimes(1);
     const [finalScore, duration] = onFinish.mock.calls[0];
     expect(typeof finalScore).toBe('number');
-    expect(duration).toBe(30000);
+    expect(duration).toBe(3000);
     // Progressbar aria-valuenow should be 100 or capped
     const progress = screen.getByRole('progressbar');
     const valNow = Number(progress.getAttribute('aria-valuenow'));

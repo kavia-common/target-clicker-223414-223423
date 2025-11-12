@@ -17,9 +17,9 @@ const dbg = (...args) => {
   }
 };
 
-// PUBLIC_INTERFACE
-export default function GameScreen({ onFinish, prefersReducedMotion }) {
-  const DURATION_MS = 30000;
+ // PUBLIC_INTERFACE
+export default function GameScreen({ onFinish, prefersReducedMotion, durationMs = 30000 }) {
+  const DURATION_MS = durationMs;
 
   // Feature flags
   const featureFlags = (process.env.REACT_APP_FEATURE_FLAGS || '').toLowerCase();
@@ -231,7 +231,7 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
     return () => cancelAnimationFrame(id);
   }, [loop, running]);
 
-  const progress = useMemo(() => Math.min(100, (elapsed / DURATION_MS) * 100), [elapsed]);
+  const progress = useMemo(() => Math.min(100, (elapsed / DURATION_MS) * 100), [elapsed, DURATION_MS]);
 
   const scoreLabel = useMemo(() => {
     const safe = Number.isFinite(score) ? score : 0;
