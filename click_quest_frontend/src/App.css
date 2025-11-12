@@ -217,6 +217,9 @@
   color: #1e3a8a;
   font-weight: 900;
   user-select: none;
+  /* Ensure clickable even if parent disables pointer events */
+  pointer-events: auto;
+  z-index: 10;
 }
 .target:hover { transform: scale(1.05); }
 .target:active { transform: scale(0.95); }

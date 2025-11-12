@@ -2,13 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 
 /**
  * Target
- * Renders a clickable moving target.
- * Props:
- * - x, y: position in pixels
- * - size: diameter in px
- * - label: optional text inside target
- * - onHit: callback when clicked
- * - prefersReducedMotion: boolean to limit animations
+ * Renders a clickable moving target with accessible interactions.
+ * Ensures it sits above the playfield and receives pointer events.
  */
 export default function Target({
   x,
@@ -22,12 +17,17 @@ export default function Target({
   const ref = useRef(null);
   const firedRef = useRef(false); // guard against multiple onHit firing
 
+  // PUBLIC_INTERFACE
+  function handleFire() {
+    if (hit || firedRef.current) return;
+    setHit(true);
+  }
+
   useEffect(() => {
     if (!hit) return;
     const t = setTimeout(() => {
       if (!firedRef.current) {
         firedRef.current = true;
-        // fully remove after animation
         try {
           onHit?.();
         } catch {
@@ -39,9 +39,17 @@ export default function Target({
   }, [hit, onHit, prefersReducedMotion]);
 
   const handleClick = (e) => {
-    e.stopPropagation();
-    if (hit || firedRef.current) return;
-    setHit(true);
+    // Avoid blocking ancestors but ensure our click is processed
+    if (e?.preventDefault) e.preventDefault();
+    if (e?.stopPropagation) e.stopPropagation();
+    handleFire();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleFire();
+    }
   };
 
   const diam = Number.isFinite(size) ? size : 48;
@@ -54,6 +62,9 @@ export default function Target({
     width: diam,
     height: diam,
     transform: hit ? 'scale(0)' : undefined,
+    // Ensure target sits on top and is clickable
+    zIndex: 10,
+    pointerEvents: 'auto',
   };
 
   return (
@@ -62,8 +73,11 @@ export default function Target({
       className={`target${hit ? ' hit' : ''}`}
       style={style}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
       aria-label="Target"
       title="Target"
+      tabIndex={0}
     >
       <span aria-hidden="true">{label ?? ''}</span>
     </button>

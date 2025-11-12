@@ -83,7 +83,9 @@ If submission is successful, your score appears in the leaderboard.
 - Stale env values:
   - CRA reads .env at start. Stop and restart `npm start` after changing .env
 - Debugging gameplay:
-  - Open browser devtools Console. Non-sensitive debug messages appear with "[Game]" prefix for hits and scoring.
+  - Open browser devtools Console. Non-sensitive debug messages appear with "[Game]" prefix for hits, scoring, and submission.
+  - If clicks don't register, ensure targets are above the play area and verify there is no overlay; in this app the play area ignores pointer events while targets explicitly accept them.
+  - Verify feature flags: set REACT_APP_FEATURE_FLAGS to include "fast-score" or "combo" to enable combo, or leave empty for base scoring only.
 
 ## Build
 

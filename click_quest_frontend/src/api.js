@@ -10,7 +10,6 @@ function getBaseUrl() {
     process.env.REACT_APP_BACKEND_URL ||
     DEFAULT_BASE;
   try {
-    // Basic validation without throwing sensitive info
     const url = new URL(base);
     return url.toString().replace(/\/+$/, '');
   } catch {
@@ -27,8 +26,14 @@ async function safeFetch(url, options = {}) {
     ...(options.headers || {}),
   };
 
+  // Default CORS-friendly options; can be overridden via options
+  const baseOpts = {
+    mode: options.mode || 'cors',
+    credentials: options.credentials || 'same-origin',
+  };
+
   try {
-    const res = await fetch(url, { ...options, headers, signal: controller.signal });
+    const res = await fetch(url, { ...baseOpts, ...options, headers, signal: controller.signal });
     const contentType = res.headers.get('content-type') || '';
     const isJson = contentType.includes('application/json');
     const body = isJson ? await res.json().catch(() => ({})) : await res.text();

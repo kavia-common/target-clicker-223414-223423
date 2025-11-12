@@ -3,14 +3,25 @@ import { getLeaderboard, submitScore } from '../api';
 
 /**
  * EndScreen
- * - Shows final score
- * - Input name (1-20 chars)
- * - Submit to backend -> refresh leaderboard
- * - Basic accessibility and error handling
+ * Shows final score, allows player to submit name, and displays leaderboard.
  */
+
+// console-safe debug
+const dbg = (...args) => {
+  try {
+    if (typeof window !== 'undefined' && window?.console?.debug) {
+      window.console.debug('[Game]', ...args);
+    }
+  } catch {
+    /* no-op */
+  }
+};
 
 // PUBLIC_INTERFACE
 export default function EndScreen({ score, durationMs, onRestart }) {
+  const safeScore = Number.isFinite(score) ? score : 0;
+  const safeDuration = Number.isFinite(durationMs) ? durationMs : 30000;
+
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -26,7 +37,6 @@ export default function EndScreen({ score, durationMs, onRestart }) {
     setLoadingBoard(true);
     try {
       const data = await getLeaderboard(10);
-      // Normalize shape: expect array of {name, score, durationMs, createdAt?}
       if (Array.isArray(data)) {
         setLeaderboard(data);
       } else if (data && Array.isArray(data.items)) {
@@ -34,8 +44,7 @@ export default function EndScreen({ score, durationMs, onRestart }) {
       } else {
         setLeaderboard([]);
       }
-    } catch (e) {
-      // Avoid logging sensitive data
+    } catch {
       setLeaderboard([]);
     } finally {
       setLoadingBoard(false);
@@ -52,7 +61,7 @@ export default function EndScreen({ score, durationMs, onRestart }) {
   }, [name]);
 
   const onSubmit = useCallback(async () => {
-    const trimmed = name.trim();
+    const trimmed = (name || '').trim();
     if (!trimmed || trimmed.length > 20) {
       setSubmitError('Name must be 1-20 characters.');
       return;
@@ -60,20 +69,22 @@ export default function EndScreen({ score, durationMs, onRestart }) {
     setSubmitError('');
     setSubmitting(true);
     try {
-      await submitScore({ name: trimmed, score, durationMs });
+      // submitScore expects { name, score, durationMs }
+      await submitScore({ name: trimmed, score: safeScore, durationMs: safeDuration });
+      dbg('submit ok', { name: trimmed, score: safeScore, durationMs: safeDuration });
       await loadBoard();
     } catch (e) {
       setSubmitError('Failed to submit score. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  }, [durationMs, loadBoard, name, score]);
+  }, [loadBoard, name, safeDuration, safeScore]);
 
   return (
     <section className="end-wrap" aria-label="End Screen">
       <div className="surface" role="region" aria-labelledby="final-score">
         <h2 id="final-score" className="score-badge">
-          Final Score: {score}
+          Final Score: {safeScore}
         </h2>
 
         <div className="form-row" style={{ marginTop: 12 }}>
@@ -138,7 +149,7 @@ export default function EndScreen({ score, durationMs, onRestart }) {
                     <td>{idx + 1}</td>
                     <td>{row.name}</td>
                     <td>{row.score}</td>
-                    <td>{formatDuration(row.durationMs ?? durationMs)}</td>
+                    <td>{formatDuration(row.durationMs ?? safeDuration)}</td>
                   </tr>
                 ))}
               </tbody>
