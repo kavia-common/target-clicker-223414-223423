@@ -21,17 +21,50 @@ The frontend uses REACT_APP_API_BASE or REACT_APP_BACKEND_URL to call:
 - GET /api/leaderboard?limit=10
 - POST /api/scores
 
-## Run Locally
+## Run Locally (Frontend + Backend)
 
-Install dependencies and start:
+Target dev ports:
+- Frontend: http://localhost:3000
+- Backend:  http://localhost:3001
 
+1) Prepare env
+- Copy .env.example to .env and ensure:
+  REACT_APP_API_BASE=http://localhost:3001
+
+2) Start backend first (port 3001)
+- Refer to the backend README for start instructions.
+- Verify health check:
+  - Open http://localhost:3001/api/health
+  - Expected: 200 OK with a simple health payload.
+
+3) Start frontend (port 3000)
 ```
 npm install
 npm start
 ```
+- Open http://localhost:3000
 
-- App: http://localhost:3000
-- Ensure your backend is running and accessible at REACT_APP_API_BASE (default http://localhost:3001).
+4) Verify integration flow
+- Start screen: click "Play"
+- Game screen: play 30s; targets move and clicking increases score
+- End screen:
+  - Enter a name (1–20 chars)
+  - Click "Submit" to POST to http://localhost:3001/api/scores
+  - Leaderboard fetches via GET http://localhost:3001/api/leaderboard?limit=10
+
+If submission is successful, your score appears in the leaderboard.
+
+## Troubleshooting
+
+- CORS errors in browser console:
+  - Ensure backend CORS allows http://localhost:3000 (see backend README: APP_CORS_ALLOWED_ORIGINS)
+- Network error / fetch failed:
+  - Confirm backend is running on port 3001
+  - Confirm .env REACT_APP_API_BASE matches backend URL, then restart `npm start`
+- 404s for /api routes:
+  - Confirm backend exposes /api/health, /api/leaderboard, /api/scores
+- Stale env values:
+  - CRA reads .env at start. Stop and restart `npm start` after changing .env
 
 ## Build
 
