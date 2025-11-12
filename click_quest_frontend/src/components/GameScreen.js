@@ -80,29 +80,40 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
   }, [reset]);
 
   const spawnTarget = useCallback(() => {
+    /**
+     * Atomically append a new target using a single setTargets call.
+     * Generates target using areaRef.getBoundingClientRect(), and only appends when under the cap.
+     * This eliminates nested state updates inside other setState calls.
+     */
     const area = areaRef.current;
     if (!area) return;
-    const rect = area.getBoundingClientRect();
 
-    const size = Math.round(36 + Math.random() * 28); // 36-64
-    const x = Math.random() * (rect.width - size) + size / 2;
-    const y = Math.random() * (rect.height - size) + size / 2;
+    setTargets((prev) => {
+      // Respect cap (8). If already at cap, no change.
+      if (prev.length >= 8) return prev;
 
-    const speedBase = prefersReducedMotion ? 40 : 120; // px/s
-    const vx = (Math.random() * 2 - 1) * speedBase;
-    const vy = (Math.random() * 2 - 1) * speedBase;
+      const rect = area.getBoundingClientRect();
+      const size = Math.round(36 + Math.random() * 28); // 36-64
+      const x = Math.random() * Math.max(1, rect.width - size) + size / 2;
+      const y = Math.random() * Math.max(1, rect.height - size) + size / 2;
 
-    setTargets((prev) => [
-      ...prev,
-      {
-        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        x,
-        y,
-        vx,
-        vy,
-        size,
-      },
-    ]);
+      const speedBase = prefersReducedMotion ? 40 : 120; // px/s
+      const vx = (Math.random() * 2 - 1) * speedBase;
+      const vy = (Math.random() * 2 - 1) * speedBase;
+
+      const next = [
+        ...prev,
+        {
+          id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          x,
+          y,
+          vx,
+          vy,
+          size,
+        },
+      ];
+      return next;
+    });
   }, [prefersReducedMotion]);
 
   /**
@@ -172,7 +183,8 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
       const spawnInterval = prefersReducedMotion ? 1400 : 800;
       if (ts - lastSpawnRef.current > spawnInterval) {
         lastSpawnRef.current = ts;
-        setTargets((prev) => (prev.length < 8 ? (spawnTarget(), prev) : prev));
+        // Spawn using atomic updater (no nested state mutations)
+        spawnTarget();
       }
 
       // Move targets
