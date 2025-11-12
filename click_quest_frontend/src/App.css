@@ -157,6 +157,20 @@
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
   font-weight: 700;
+  transition: transform .12s ease;
+}
+.top-bar .stat:has(> span.combo) {
+  /* Emphasize when combo active (safe, minimal) */
+  transform: translateY(-1px);
+}
+.top-bar .stat .combo {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(245,158,11,.18), rgba(37,99,235,.18));
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
 }
 .progress {
   height: 8px;

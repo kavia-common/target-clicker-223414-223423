@@ -8,14 +8,38 @@ import Target from './Target';
  * - Spawns moving targets within play area; clicking increments score
  * - Respects prefers-reduced-motion
  * - Calls onFinish(score, elapsedMs) when time is up
+ *
+ * Scoring behavior:
+ * - Base per-hit value increased to +5
+ * - Optional time-decayed combo multiplier (x1..x3) within a short window (2s)
+ *   - Combo grows to next tier on each hit within window, capped at x3
+ *   - Decays by one tier after 2s of inactivity until x1
+ * - Feature flag: enable combo if REACT_APP_FEATURE_FLAGS includes "fast-score" or "combo"
  */
 
 // PUBLIC_INTERFACE
 export default function GameScreen({ onFinish, prefersReducedMotion }) {
   const DURATION_MS = 30000;
+
+  // Feature flags: enable combo by default if flags contain "fast-score" or "combo"
+  const featureFlags = (process.env.REACT_APP_FEATURE_FLAGS || '').toLowerCase();
+  const comboEnabled = useMemo(
+    () => featureFlags.includes('fast-score') || featureFlags.includes('combo'),
+    [featureFlags]
+  );
+
+  const BASE_POINTS = 5; // increased base per-hit points
+  const COMBO_WINDOW_MS = 2000;
+  const COMBO_MAX = 3;
+
   const [score, setScore] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
+
+  // combo state
+  const [combo, setCombo] = useState(1);
+  const lastHitRef = useRef(0);
+  const comboTimerRef = useRef(null);
 
   const areaRef = useRef(null);
   const rafRef = useRef(null);
@@ -30,13 +54,22 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
     setElapsed(0);
     setTargets([]);
     setRunning(true);
+    setCombo(1);
     startRef.current = 0;
     lastSpawnRef.current = 0;
+    lastHitRef.current = 0;
+    if (comboTimerRef.current) {
+      clearTimeout(comboTimerRef.current);
+      comboTimerRef.current = null;
+    }
   }, []);
 
   useEffect(() => {
     reset();
-    return () => cancelAnimationFrame(rafRef.current);
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+    };
   }, [reset]);
 
   const spawnTarget = useCallback(() => {
@@ -66,10 +99,46 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
     ]);
   }, [prefersReducedMotion]);
 
-  const removeTarget = useCallback((id, gained = 1) => {
-    setTargets((prev) => prev.filter((t) => t.id !== id));
-    if (gained) setScore((s) => s + gained);
-  }, []);
+  /**
+   * Handle target removal and scoring.
+   * Applies base points and optional combo multiplier without affecting animations.
+   */
+  const removeTarget = useCallback(
+    (id) => {
+      setTargets((prev) => prev.filter((t) => t.id !== id));
+
+      // Compute next combo state and points atomically relative to time
+      setScore((prevScore) => {
+        const now = performance.now();
+        let nextCombo = 1;
+
+        if (comboEnabled) {
+          // if within combo window, increment; else reset to 1
+          const within = now - (lastHitRef.current || 0) <= COMBO_WINDOW_MS;
+          if (within) {
+            nextCombo = Math.min(COMBO_MAX, (combo || 1) + 1);
+          } else {
+            nextCombo = 1;
+          }
+
+          // schedule decay back by one tier after inactivity window
+          if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
+          comboTimerRef.current = setTimeout(() => {
+            setCombo((c) => Math.max(1, c - 1));
+          }, COMBO_WINDOW_MS);
+
+          lastHitRef.current = now;
+          setCombo(nextCombo);
+        } else {
+          nextCombo = 1;
+        }
+
+        const gained = BASE_POINTS * nextCombo;
+        return prevScore + gained;
+      });
+    },
+    [combo, comboEnabled]
+  );
 
   const loop = useCallback(
     (ts) => {
@@ -146,11 +215,16 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
     [elapsed]
   );
 
+  const scoreLabel = useMemo(() => {
+    return `🏆 Score: ${score}`;
+  }, [score]);
+
   return (
     <section className="game-wrap" aria-label="Game Screen">
       <div className="top-bar">
         <div className="stat" aria-live="polite" aria-label="Score">
-          🏆 Score: {score}
+          {scoreLabel}
+          {comboEnabled && combo > 1 ? <span className="combo">x{combo}</span> : null}
         </div>
         <div className="progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
           <div className="bar" style={{ width: `${100 - progress}%` }} />
@@ -174,7 +248,7 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
             size={t.size}
             label={idx % 3 === 0 ? '+' : ''}
             prefersReducedMotion={prefersReducedMotion}
-            onHit={() => removeTarget(t.id, 1)}
+            onHit={() => removeTarget(t.id)}
           />
         ))}
       </div>

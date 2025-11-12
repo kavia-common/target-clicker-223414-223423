@@ -17,9 +17,24 @@ Create a `.env` file (or set env vars) based on `.env.example`:
 - REACT_APP_WS_URL: Reserved for future features (not used)
 - REACT_APP_NODE_ENV, REACT_APP_ENABLE_SOURCE_MAPS, REACT_APP_PORT, REACT_APP_TRUST_PROXY, REACT_APP_LOG_LEVEL, REACT_APP_HEALTHCHECK_PATH, REACT_APP_FEATURE_FLAGS, REACT_APP_EXPERIMENTS_ENABLED: Optional build/runtime flags
 
+Feature flags (comma- or space-separated within REACT_APP_FEATURE_FLAGS):
+- fast-score or combo: Enables a lightweight combo multiplier that briefly boosts score for rapid successive hits (see Scoring).
+
+Example:
+REACT_APP_FEATURE_FLAGS=fast-score
+
 The frontend uses REACT_APP_API_BASE or REACT_APP_BACKEND_URL to call:
 - GET /api/leaderboard?limit=10
 - POST /api/scores
+
+## Scoring
+
+- Base per-hit points: +5 (increased from +1).
+- Optional combo (enabled if REACT_APP_FEATURE_FLAGS includes `fast-score` or `combo`):
+  - Multiplier increases on each hit within 2 seconds, up to x3.
+  - After 2s of inactivity, the multiplier decays by one tier until it returns to x1.
+  - The active multiplier appears next to the score, e.g., “Score: 45 x2”.
+- Timer, animations, and end-screen submission are unaffected by the scoring changes.
 
 ## Run Locally (Frontend + Backend)
 
