@@ -7,7 +7,9 @@ describe('Target', () => {
     render(<Target x={50} y={50} size={40} label="+" onHit={() => {}} prefersReducedMotion />);
     const btn = screen.getByRole('button', { name: 'Target' });
     expect(btn).toBeInTheDocument();
-    btn.focus();
+    act(() => {
+      btn.focus();
+    });
     expect(document.activeElement).toBe(btn);
   });
 

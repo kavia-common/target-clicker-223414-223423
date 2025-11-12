@@ -9,6 +9,7 @@ function clickTarget(times = 1) {
   for (let i = 0; i < Math.min(times, btns.length); i++) {
     act(() => {
       btns[i].click();
+      // Allow Target internal timeout to fire and GameScreen state updates
       jest.advanceTimersByTime(300);
     });
   }
@@ -24,10 +25,18 @@ describe('GameScreen', () => {
       // Provide a stable rectangle for movement bounds
       return { width: 600, height: 400, top: 0, left: 0, bottom: 400, right: 600 };
     };
+
+    // Ensure requestAnimationFrame is tied to timers (setupTests does this as a fallback)
+    if (typeof window !== 'undefined' && !window.requestAnimationFrame) {
+      window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+      window.cancelAnimationFrame = (id) => clearTimeout(id);
+    }
   });
 
   afterEach(() => {
-    jest.runOnlyPendingTimers();
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
     jest.useRealTimers();
   });
 
@@ -36,7 +45,7 @@ describe('GameScreen', () => {
     render(<GameScreen onFinish={onFinish} prefersReducedMotion />);
     // Advance timers to allow a spawn and animation ticks
     act(() => {
-      jest.advanceTimersByTime(1000);
+      jest.advanceTimersByTime(1200);
     });
 
     // Click available targets
@@ -52,11 +61,9 @@ describe('GameScreen', () => {
     const onFinish = jest.fn();
     render(<GameScreen onFinish={onFinish} prefersReducedMotion />);
     // Advance to allow multiple spawns
-    for (let i = 0; i < 10; i++) {
-      act(() => {
-        jest.advanceTimersByTime(200);
-      });
-    }
+    act(() => {
+      jest.advanceTimersByTime(3000);
+    });
     // Click three targets rapidly within combo window
     clickTarget(1);
     clickTarget(1);
@@ -71,7 +78,7 @@ describe('GameScreen', () => {
   test('timer counts down and calls onFinish at ~30s', () => {
     const onFinish = jest.fn();
     render(<GameScreen onFinish={onFinish} prefersReducedMotion />);
-    // Simulate full 30s
+    // Simulate full 30s; wrap in act to flush effects and RAF loops
     act(() => {
       jest.advanceTimersByTime(30000);
     });
