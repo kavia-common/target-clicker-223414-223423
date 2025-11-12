@@ -33,8 +33,7 @@
     "@testing-library/user-event": "^14.6.1",
     "cross-env": "^7.0.3",
     "react-scripts": "5.0.1",
-    "style-loader": "^3.3.4",
-    "react-refresh": "^0.14.0"
+    "style-loader": "^3.3.4"
   },
   "dependencies": {
     "react": "^18.2.0",
