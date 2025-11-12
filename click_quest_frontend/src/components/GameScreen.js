@@ -17,6 +17,17 @@ import Target from './Target';
  * - Feature flag: enable combo if REACT_APP_FEATURE_FLAGS includes "fast-score" or "combo"
  */
 
+// console-safe debug helper (no-op in environments without console)
+const dbg = (...args) => {
+  try {
+    if (typeof window !== 'undefined' && window?.console?.debug) {
+      window.console.debug('[Game]', ...args);
+    }
+  } catch {
+    /* no-op */
+  }
+};
+
 // PUBLIC_INTERFACE
 export default function GameScreen({ onFinish, prefersReducedMotion }) {
   const DURATION_MS = 30000;
@@ -35,6 +46,14 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
   const [score, setScore] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [running, setRunning] = useState(true);
+
+  // Keep a mirror ref of score for onFinish accuracy within RAF loop
+  const scoreRef = useRef(0);
+  useEffect(() => {
+    // guard against NaN/undefined
+    const safe = Number.isFinite(score) ? score : 0;
+    scoreRef.current = safe;
+  }, [score]);
 
   // combo state
   const [combo, setCombo] = useState(1);
@@ -55,6 +74,7 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
     setTargets([]);
     setRunning(true);
     setCombo(1);
+    scoreRef.current = 0;
     startRef.current = 0;
     lastSpawnRef.current = 0;
     lastHitRef.current = 0;
@@ -67,7 +87,7 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
   useEffect(() => {
     reset();
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      if (rafRef.current?.id) cancelAnimationFrame(rafRef.current.id);
       if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
     };
   }, [reset]);
@@ -102,39 +122,42 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
   /**
    * Handle target removal and scoring.
    * Applies base points and optional combo multiplier without affecting animations.
+   * This uses only refs inside the state updater to avoid stale closure issues.
    */
   const removeTarget = useCallback(
     (id) => {
+      // Remove the target first so UI reflects the hit quickly
       setTargets((prev) => prev.filter((t) => t.id !== id));
 
-      // Compute next combo state and points atomically relative to time
+      // Update score atomically; reference combo using refs/time to avoid stale values
       setScore((prevScore) => {
-        const now = performance.now();
-        let nextCombo = 1;
+        const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
+        let nextCombo = 1;
         if (comboEnabled) {
-          // if within combo window, increment; else reset to 1
           const within = now - (lastHitRef.current || 0) <= COMBO_WINDOW_MS;
-          if (within) {
-            nextCombo = Math.min(COMBO_MAX, (combo || 1) + 1);
-          } else {
-            nextCombo = 1;
-          }
+          const currentCombo = typeof combo === 'number' && Number.isFinite(combo) ? combo : 1;
+          nextCombo = within ? Math.min(COMBO_MAX, currentCombo + 1) : 1;
 
           // schedule decay back by one tier after inactivity window
           if (comboTimerRef.current) clearTimeout(comboTimerRef.current);
           comboTimerRef.current = setTimeout(() => {
-            setCombo((c) => Math.max(1, c - 1));
+            setCombo((c) => Math.max(1, (Number.isFinite(c) ? c : 1) - 1));
           }, COMBO_WINDOW_MS);
 
           lastHitRef.current = now;
           setCombo(nextCombo);
-        } else {
-          nextCombo = 1;
         }
 
         const gained = BASE_POINTS * nextCombo;
-        return prevScore + gained;
+        const safePrev = Number.isFinite(prevScore) ? prevScore : 0;
+        const newScore = safePrev + gained;
+
+        // mirror to ref so RAF loop has latest immediately
+        scoreRef.current = newScore;
+
+        dbg('hit', { gained, nextCombo, newScore });
+        return newScore;
       });
     },
     [combo, comboEnabled]
@@ -154,7 +177,9 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
       // End condition
       if (elapsedLocal >= DURATION_MS) {
         setRunning(false);
-        onFinish?.(score, DURATION_MS);
+        // Use ref to avoid any race where state hasn't flushed yet
+        const finalScore = Number.isFinite(scoreRef.current) ? scoreRef.current : 0;
+        onFinish?.(finalScore, DURATION_MS);
         return;
       }
 
@@ -200,13 +225,13 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
 
       rafRef.current = { id: requestAnimationFrame(loop), ts };
     },
-    [DURATION_MS, onFinish, prefersReducedMotion, running, score, spawnTarget]
+    [DURATION_MS, onFinish, prefersReducedMotion, running, spawnTarget]
   );
 
   useEffect(() => {
     if (!running) return;
     const id = requestAnimationFrame(loop);
-    rafRef.current = { id, ts: performance.now() };
+    rafRef.current = { id, ts: typeof performance !== 'undefined' ? performance.now() : Date.now() };
     return () => cancelAnimationFrame(id);
   }, [loop, running]);
 
@@ -216,7 +241,8 @@ export default function GameScreen({ onFinish, prefersReducedMotion }) {
   );
 
   const scoreLabel = useMemo(() => {
-    return `🏆 Score: ${score}`;
+    const safe = Number.isFinite(score) ? score : 0;
+    return `🏆 Score: ${safe}`;
   }, [score]);
 
   return (

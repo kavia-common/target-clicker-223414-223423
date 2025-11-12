@@ -20,27 +20,39 @@ export default function Target({
 }) {
   const [hit, setHit] = useState(false);
   const ref = useRef(null);
+  const firedRef = useRef(false); // guard against multiple onHit firing
 
   useEffect(() => {
     if (!hit) return;
     const t = setTimeout(() => {
-      // fully remove after animation
-      onHit?.();
+      if (!firedRef.current) {
+        firedRef.current = true;
+        // fully remove after animation
+        try {
+          onHit?.();
+        } catch {
+          /* no-op */
+        }
+      }
     }, prefersReducedMotion ? 0 : 250);
     return () => clearTimeout(t);
   }, [hit, onHit, prefersReducedMotion]);
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if (hit) return;
+    if (hit || firedRef.current) return;
     setHit(true);
   };
 
+  const diam = Number.isFinite(size) ? size : 48;
+  const lx = Number.isFinite(x) ? x : 0;
+  const ly = Number.isFinite(y) ? y : 0;
+
   const style = {
-    left: Math.max(0, x - size / 2),
-    top: Math.max(0, y - size / 2),
-    width: size,
-    height: size,
+    left: Math.max(0, lx - diam / 2),
+    top: Math.max(0, ly - diam / 2),
+    width: diam,
+    height: diam,
     transform: hit ? 'scale(0)' : undefined,
   };
 

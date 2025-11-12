@@ -19,9 +19,8 @@ Create a `.env` file (or set env vars) based on `.env.example`:
 
 Feature flags (comma- or space-separated within REACT_APP_FEATURE_FLAGS):
 - fast-score or combo: Enables a lightweight combo multiplier that briefly boosts score for rapid successive hits (see Scoring).
-
-Example:
-REACT_APP_FEATURE_FLAGS=fast-score
+  - Example: `REACT_APP_FEATURE_FLAGS=fast-score`
+  - Note: Flags are case-insensitive; both "fast-score" and "combo" enable the same combo system.
 
 The frontend uses REACT_APP_API_BASE or REACT_APP_BACKEND_URL to call:
 - GET /api/leaderboard?limit=10
@@ -34,7 +33,10 @@ The frontend uses REACT_APP_API_BASE or REACT_APP_BACKEND_URL to call:
   - Multiplier increases on each hit within 2 seconds, up to x3.
   - After 2s of inactivity, the multiplier decays by one tier until it returns to x1.
   - The active multiplier appears next to the score, e.g., “Score: 45 x2”.
-- Timer, animations, and end-screen submission are unaffected by the scoring changes.
+- The game now ensures that:
+  - Each successful hit increments immediately in UI.
+  - The final score is safely captured at time-up and passed to the End screen for submission.
+  - Defensive guards prevent NaN/undefined scores.
 
 ## Run Locally (Frontend + Backend)
 
@@ -80,6 +82,8 @@ If submission is successful, your score appears in the leaderboard.
   - Confirm backend exposes /api/health, /api/leaderboard, /api/scores
 - Stale env values:
   - CRA reads .env at start. Stop and restart `npm start` after changing .env
+- Debugging gameplay:
+  - Open browser devtools Console. Non-sensitive debug messages appear with "[Game]" prefix for hits and scoring.
 
 ## Build
 
