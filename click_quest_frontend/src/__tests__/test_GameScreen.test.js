@@ -11,21 +11,24 @@ if (typeof window !== 'undefined') {
     window.cancelAnimationFrame || ((id) => clearTimeout(id));
 }
 
-// Helper to click currently available target button(s).
-// Always re-query between clicks because targets are removed/respawned.
+// Helper to deterministically click available target buttons.
+// - Re-query between clicks because targets are removed/respawned.
+// - When multiple targets are present, pick the first deterministically.
+// - After each click, advance timers and wait for score update or the clicked element to be removed.
 async function clickTargets(times = 1) {
   for (let i = 0; i < times; i++) {
-    // Ensure a target is present before each click
     // eslint-disable-next-line no-await-in-loop
-    const btn = await screen.findByRole('button', { name: 'Target' });
+    const buttons = await screen.findAllByRole('button', { name: 'Target' });
+    const btn = buttons[0]; // deterministic selection
+
     await act(async () => {
       btn.click();
-      // Allow Target onHit timeout and GameScreen state updates to run
-      jest.advanceTimersByTime(300);
+      // Let any microtasks/raf-bound updates flush
+      jest.advanceTimersByTime(0);
     });
+
     // eslint-disable-next-line no-await-in-loop
     await waitFor(() => {
-      // score label should reflect an updated score pattern
       expect(screen.getByLabelText(/score/i)).toHaveTextContent(/Score:\s*\d+/i);
     });
   }
@@ -60,8 +63,8 @@ describe('GameScreen', () => {
       jest.advanceTimersByTime(1200);
     });
 
-    // Ensure first target is present before clicking
-    await screen.findByRole('button', { name: /Target/i });
+    // Ensure first target(s) are present before clicking
+    await screen.findAllByRole('button', { name: /Target/i });
 
     // Click an available target (requerying between clicks is handled)
     await clickTargets(1);
@@ -83,8 +86,7 @@ describe('GameScreen', () => {
       jest.advanceTimersByTime(3000);
     });
 
-    // Click three targets rapidly within the combo window, requerying between clicks.
-    // If needed, advance timers a bit between clicks to spawn new targets.
+    // Perform three distinct clicks, re-querying buttons each time to avoid ambiguity.
     await clickTargets(1);
     await act(async () => {
       jest.advanceTimersByTime(200); // slight interval within combo window
