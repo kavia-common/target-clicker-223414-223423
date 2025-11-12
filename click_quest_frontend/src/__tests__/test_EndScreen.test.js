@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import * as api from '../api';
 import EndScreen from '../components/EndScreen';
 
@@ -47,13 +47,17 @@ describe('EndScreen', () => {
 
     const input = screen.getByLabelText(/name/i);
     fireEvent.change(input, { target: { value: 'Player1' } });
-    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+    });
 
     // submitScore called with payload
-    await act(async () => {});
-    expect(api.submitScore).toHaveBeenCalledWith({ name: 'Player1', score: 50, durationMs: 30000 });
+    await waitFor(() =>
+      expect(api.submitScore).toHaveBeenCalledWith({ name: 'Player1', score: 50, durationMs: 30000 })
+    );
     // leaderboard reload called again after submit
-    expect(getSpy).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(getSpy).toHaveBeenCalledTimes(2));
   });
 
   test('shows error message when submission fails', async () => {
@@ -62,7 +66,11 @@ describe('EndScreen', () => {
     await screen.findByText(/alice/i);
     const input = screen.getByLabelText(/name/i);
     fireEvent.change(input, { target: { value: 'P1' } });
-    fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /submit/i }));
+    });
+
     // Error shows
     expect(await screen.findByText(/failed to submit score/i)).toBeInTheDocument();
   });

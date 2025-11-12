@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import Target from '../components/Target';
 
 describe('Target', () => {
@@ -17,14 +17,18 @@ describe('Target', () => {
     render(<Target x={50} y={50} size={40} label="+" onHit={onHit} prefersReducedMotion={false} />);
     const btn = screen.getByRole('button', { name: 'Target' });
 
-    fireEvent.click(btn);
-    // Effect waits ~250ms when reducedMotion=false
-    jest.advanceTimersByTime(300);
+    act(() => {
+      fireEvent.click(btn);
+      // Effect waits ~250ms when reducedMotion=false
+      jest.advanceTimersByTime(300);
+    });
     expect(onHit).toHaveBeenCalledTimes(1);
 
     // Further clicks should not fire again
-    fireEvent.click(btn);
-    jest.advanceTimersByTime(300);
+    act(() => {
+      fireEvent.click(btn);
+      jest.advanceTimersByTime(300);
+    });
     expect(onHit).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
   });
@@ -35,8 +39,10 @@ describe('Target', () => {
     render(<Target x={50} y={50} size={40} label="+" onHit={onHit} prefersReducedMotion />);
     const btn = screen.getByRole('button', { name: 'Target' });
 
-    fireEvent.keyDown(btn, { key: 'Enter' });
-    jest.advanceTimersByTime(0);
+    act(() => {
+      fireEvent.keyDown(btn, { key: 'Enter' });
+      jest.advanceTimersByTime(0);
+    });
     expect(onHit).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
   });
