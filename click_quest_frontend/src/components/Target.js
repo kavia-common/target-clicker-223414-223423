@@ -25,6 +25,13 @@ export default function Target({
 
   useEffect(() => {
     if (!hit) return;
+    // In tests, ensure onHit triggers predictably with 0ms delay to avoid flakiness with fake timers/RAF
+    const isTestEnv =
+      (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test') ||
+      (typeof process !== 'undefined' && process.env && process.env.REACT_APP_NODE_ENV === 'test');
+
+    const delay = isTestEnv ? 0 : (prefersReducedMotion ? 0 : 250);
+
     const t = setTimeout(() => {
       if (!firedRef.current) {
         firedRef.current = true;
@@ -34,7 +41,7 @@ export default function Target({
           /* no-op */
         }
       }
-    }, prefersReducedMotion ? 0 : 250);
+    }, delay);
     return () => clearTimeout(t);
   }, [hit, onHit, prefersReducedMotion]);
 

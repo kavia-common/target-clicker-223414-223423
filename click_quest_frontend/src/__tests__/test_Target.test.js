@@ -21,15 +21,15 @@ describe('Target', () => {
 
     act(() => {
       fireEvent.click(btn);
-      // Effect waits ~250ms when reducedMotion=false
-      jest.advanceTimersByTime(300);
+      // Flush pending timers deterministically
+      jest.runOnlyPendingTimers();
     });
     expect(onHit).toHaveBeenCalledTimes(1);
 
     // Further clicks should not fire again
     act(() => {
       fireEvent.click(btn);
-      jest.advanceTimersByTime(300);
+      jest.runOnlyPendingTimers();
     });
     expect(onHit).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
@@ -43,7 +43,8 @@ describe('Target', () => {
 
     act(() => {
       fireEvent.keyDown(btn, { key: 'Enter' });
-      jest.advanceTimersByTime(0);
+      // Flush immediate timers
+      jest.runOnlyPendingTimers();
     });
     expect(onHit).toHaveBeenCalledTimes(1);
     jest.useRealTimers();
